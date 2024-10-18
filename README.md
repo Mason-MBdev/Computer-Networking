@@ -1,2 +1,2 @@
 # Computer-Networking
-Coursework related to computer networking, sockets, and exploring communication protocols.
+Coursework related to computer networking, sockets, and communication protocols.
