@@ -3,6 +3,7 @@ import threading
 from datetime import datetime
 import json
 import os
+import struct
 
 # Global client cache (in-memory)
 client_cache = {}
@@ -23,7 +24,7 @@ def handle_client(client_socket, client_name, client_addr):
             
             if message == "exit":
                 # Disconnect the client
-                print(f"{client_name} has disconnected.")
+                print(f"{client_name}{client_addr} has disconnected.")
                 disconnected_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 client_cache[client_name]['disconnected_at'] = disconnected_at
                 client_socket.close()
@@ -31,6 +32,7 @@ def handle_client(client_socket, client_name, client_addr):
             elif message == "status":
                 # Send the current client cache in JSON format back to the client
                 status_json = json.dumps(client_cache, indent=4)
+                print(f"JSON sent to {client_name}{client_addr}")
                 client_socket.send(status_json.encode())
             elif message == "list":
                 # Get the list of files but not directories
@@ -40,29 +42,44 @@ def handle_client(client_socket, client_name, client_addr):
                         files.append(file)
                 #format the files so it looks like a list
                 response = f"['{"', '".join(files)}']"
+                print(f"{response} sent to {client_name}{client_addr}")
                 client_socket.send(response.encode())
             elif "fetch " in message:
                 filename = message.split(" ")[1]
-                if os.path.isfile(filename):
-                    file = open(filename, "r")
-                    data = file.read(1024)
-                    client_socket.send("FILE".encode())
-                    while data:
-                        # Split each packet with |
-                        client_socket.send("|".encode())
 
-                        client_socket.send(data.encode())
+                #check if file exists
+                if os.path.isfile(filename):
+                    #send confirmation of a file being sent to the client
+                    client_socket.send("FILE".encode())
+
+                    file = open(filename, "rb")
+                    data = file.read(1024)
+
+                    #send the file size to the client
+                    filesize = os.path.getsize(filename)
+                    client_socket.send(struct.pack(">Q", filesize))
+
+                    #send file data to client
+                    sent = 0
+                    packetnum = 0
+                    while data:
+                        sent += len(data)
+                        packetnum += 1
+                        print(f"#{packetnum}: {sent} bytes sent to {client_name}{client_addr}")
+                        client_socket.send(data)
                         data = file.read(1024)
                     file.close()
-                    client_socket.send("|DONE".encode())
+                    print(f"File '{filename} sent to {client_name}{client_addr}")
                 else:
-                    client_socket.send(f"{filename} does not exist".encode())
+                    print(f"File '{filename}' requested by {client_name}{client_addr} does not exist")
+                    client_socket.send(f"File '{filename}' does not exist".encode())
             else:
                 # Echo the message back with "ACK" appended
+                print(f"{client_name}{client_addr}: {message}")
                 response = f"{message} ACK"
                 client_socket.send(response.encode())
         except:
-            print(f"Connection with {client_name} was interrupted.")
+            print(f"Connection with {client_name}{client_addr} was interrupted.")
             disconnected_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             client_cache[client_name]['disconnected_at'] = disconnected_at
             client_socket.close()
