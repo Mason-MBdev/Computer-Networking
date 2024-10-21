@@ -13,6 +13,7 @@ client_id_counter = 0  # Assigns unique client IDs dynamically
 
 def handle_client(client_socket, client_name, client_addr):
     global client_count
+    client_socket.send("CONNECTED".encode())
     # Store client connection time
     connected_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     client_cache[client_name] = {'address': client_addr, 'connected_at': connected_at, 'disconnected_at': None}
@@ -102,7 +103,7 @@ def start_server():
 
         if client_count >= MAX_CLIENTS:
             # Send rejection message if the client limit is exceeded
-            client_socket.send("Server is full. Connection refused.".encode())
+            client_socket.send("SERVER FULL".encode())
             client_socket.close()
             print(f"Connection from {client_addr} refused. Maximum clients reached.")
         else:
