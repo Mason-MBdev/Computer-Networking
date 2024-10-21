@@ -2,6 +2,7 @@ import socket
 import threading
 from datetime import datetime
 import json
+import os
 
 # Global client cache (in-memory)
 client_cache = {}
@@ -31,12 +32,40 @@ def handle_client(client_socket, client_name, client_addr):
                 # Send the current client cache in JSON format back to the client
                 status_json = json.dumps(client_cache, indent=4)
                 client_socket.send(status_json.encode())
+            elif message == "list":
+                # Get the list of files but not directories
+                files = []
+                for file in os.listdir():
+                    if os.path.isfile(file):
+                        files.append(file)
+                #format the files so it looks like a list
+                response = f"['{"', '".join(files)}']"
+                client_socket.send(response.encode())
+            elif "fetch " in message:
+                filename = message.split(" ")[1]
+                if os.path.isfile(filename):
+                    file = open(filename, "r")
+                    data = file.read(1024)
+                    client_socket.send("FILE".encode())
+                    while data:
+                        # Split each packet with |
+                        client_socket.send("|".encode())
+
+                        client_socket.send(data.encode())
+                        data = file.read(1024)
+                    file.close()
+                    client_socket.send("|DONE".encode())
+                else:
+                    client_socket.send(f"{filename} does not exist".encode())
             else:
                 # Echo the message back with "ACK" appended
                 response = f"{message} ACK"
                 client_socket.send(response.encode())
         except:
             print(f"Connection with {client_name} was interrupted.")
+            disconnected_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            client_cache[client_name]['disconnected_at'] = disconnected_at
+            client_socket.close()
             break
 
     # Clean up after the client disconnects
