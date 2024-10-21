@@ -93,7 +93,7 @@ def handle_client(client_socket, client_name, client_addr):
 def start_server():
     global client_count, client_id_counter
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('localhost', 12345))
+    server_socket.bind(('0.0.0.0', 12345))
     server_socket.listen(MAX_CLIENTS)
     print("Server is listening...")
 
